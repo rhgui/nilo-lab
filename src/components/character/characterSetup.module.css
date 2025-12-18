@@ -1,23 +1,22 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  z-index: 1500;
+  z-index: 1400;
   display: grid;
   place-items: center;
-  padding: 0;
-  background: transparent;
+  background: rgba(0, 0, 0, 0.35);
 }
 
-.modal {
-  width: min(420px, calc(100vw - 24px));
+.card {
+  width: min(520px, calc(100vw - 24px));
   background: rgba(15, 15, 18, 0.86);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 18px;
-  padding: 10px;
+  padding: 14px;
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
 }
 
-.inputRow {
+.row {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 10px;
@@ -25,7 +24,6 @@
 }
 
 .input {
-  pointer-events: auto;
   height: 46px;
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -36,30 +34,23 @@
   outline: none;
 }
 
-.input::placeholder {
-  color: rgba(255, 255, 255, 0.55);
-}
-
 .input:focus {
   border-color: rgba(255, 157, 77, 0.65);
   box-shadow: 0 0 0 3px rgba(255, 123, 28, 0.18);
 }
 
-.send {
-  pointer-events: auto;
-  width: 46px;
+.button {
   height: 46px;
   border-radius: 14px;
   border: 1px solid rgba(255, 157, 77, 0.35);
   background: linear-gradient(135deg, #ff9d4d 0%, #ff7b1c 100%);
   color: rgba(20, 14, 8, 0.95);
-  font-weight: 900;
-  font-size: 18px;
+  font-weight: 800;
+  padding: 0 14px;
   cursor: pointer;
-  box-shadow: 0 6px 18px rgba(255, 123, 28, 0.22);
 }
 
-.send:disabled {
+.button:disabled {
   cursor: not-allowed;
   filter: saturate(0.4);
   opacity: 0.6;
