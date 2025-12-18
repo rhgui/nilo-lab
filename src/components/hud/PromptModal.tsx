@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from "react"
+import styles from "./promptModal.module.css"
 
 interface PromptModalProps {
   isOpen: boolean
@@ -7,119 +8,69 @@ interface PromptModalProps {
 }
 
 export default function PromptModal({ isOpen, onClose, onSubmit }: PromptModalProps) {
-  const [prompt, setPrompt] = useState('')
+  const [prompt, setPrompt] = useState("")
+  const inputRef = useRef<HTMLInputElement | null>(null)
 
   if (!isOpen) return null
+
+  useEffect(() => {
+    // Esc closes the modal and returns control to the game.
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "Escape") onClose()
+      if (e.code === "Enter") {
+        e.preventDefault()
+        handleSubmit()
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen])
+
+  useEffect(() => {
+    // Focus the input when opening.
+    inputRef.current?.focus()
+  }, [])
 
   const handleSubmit = () => {
     if (prompt.trim()) {
       onSubmit(prompt)
-      setPrompt('')
+      setPrompt("")
       onClose()
     }
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSubmit()
-    }
-  }
-
   return (
-    <div 
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000
-      }}
-      onClick={onClose}
-    >
-      <div 
-        style={{
-          backgroundColor: '#1a1a1a',
-          padding: '24px',
-          borderRadius: '12px',
-          width: '90%',
-          maxWidth: '500px',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 style={{ 
-          margin: '0 0 16px 0', 
-          color: '#fff',
-          fontSize: '20px',
-          fontWeight: '600'
-        }}>
-          Generate Skybox
-        </h2>
-        
-        <textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="Describe the skybox you want to generate..."
-          style={{
-            width: '100%',
-            minHeight: '100px',
-            padding: '12px',
-            backgroundColor: '#2a2a2a',
-            border: '1px solid #404040',
-            borderRadius: '8px',
-            color: '#fff',
-            fontSize: '14px',
-            fontFamily: 'inherit',
-            resize: 'vertical',
-            marginBottom: '16px'
-          }}
-          autoFocus
-        />
-        
-        <div style={{ 
-          display: 'flex', 
-          gap: '12px', 
-          justifyContent: 'flex-end' 
-        }}>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: '#2a2a2a',
-              color: '#fff',
-              border: '1px solid #404040',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500'
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={!prompt.trim()}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: prompt.trim() ? '#4a9eff' : '#2a4a6a',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: prompt.trim() ? 'pointer' : 'not-allowed',
-              fontSize: '14px',
-              fontWeight: '500'
-            }}
-          >
-            Generate
+    <div className={styles.backdrop} onMouseDown={onClose} role="dialog" aria-modal="true">
+      <div className={styles.modal} onMouseDown={(e) => e.stopPropagation()}>
+        <div className={styles.header}>
+          <div className={styles.title}>Generate Skybox</div>
+          <button className={styles.close} type="button" onClick={onClose} aria-label="Close">
+            Esc
           </button>
         </div>
+
+        <div className={styles.inputRow}>
+          <input
+            ref={inputRef}
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="make a house..."
+            className={styles.input}
+          />
+          <button
+            type="button"
+            className={styles.send}
+            onClick={handleSubmit}
+            disabled={!prompt.trim()}
+            aria-label="Generate"
+          >
+            →
+          </button>
+        </div>
+
+        <div className={styles.hint}>Press Enter to generate • Esc to close</div>
       </div>
     </div>
   )
