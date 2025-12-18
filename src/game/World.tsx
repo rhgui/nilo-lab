@@ -18,12 +18,23 @@ function createNameSprite(name: string) {
   if (!ctx) throw new Error("2D canvas context not available")
 
   ctx.clearRect(0, 0, canvas.width, canvas.height)
-  ctx.font = "700 56px system-ui, -apple-system, Segoe UI, Roboto, Arial"
+  // Fit text to the available width by reducing font size for longer names.
+  const maxTextWidth = 460
+  let fontSize = 56
+  const minFontSize = 22
+  const setFont = () => {
+    ctx.font = `700 ${fontSize}px system-ui, -apple-system, Segoe UI, Roboto, Arial`
+  }
+  setFont()
+  while (fontSize > minFontSize && ctx.measureText(name).width > maxTextWidth) {
+    fontSize -= 2
+    setFont()
+  }
   ctx.textAlign = "center"
   ctx.textBaseline = "middle"
 
   // subtle stroke for readability
-  ctx.lineWidth = 10
+  ctx.lineWidth = Math.max(6, Math.round(fontSize * 0.18))
   ctx.strokeStyle = "rgba(0,0,0,0.55)"
   ctx.strokeText(name, canvas.width / 2, canvas.height / 2)
 

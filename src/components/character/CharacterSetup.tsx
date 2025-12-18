@@ -23,7 +23,6 @@ export default function CharacterSetup({ initialName, onConfirm }: CharacterSetu
   return (
     <div className={styles.backdrop} role="dialog" aria-modal="true">
       <div className={styles.card}>
-        <div className={styles.title}>Choose your name</div>
         <div className={styles.row}>
           <input
             ref={inputRef}
