@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react"
-import { HoldKeyTracker } from "../../lib/HoldKeyTracker"
-import { MousePositionTracker } from "../../lib/MousePositionTracker"
+import { HoldKeyTracker } from "../../input/HoldKeyTracker"
+import { MousePositionTracker } from "../../input/MousePositionTracker"
 import styles from "./hud.module.css"
 import CustomCursor from "./CustomCursor"
+import PromptModal from "./PromptModal"
 
 const MENU_KEY_CODE = "KeyQ"
 
@@ -12,7 +13,7 @@ function formatKey(code: string) {
 }
 
 const tools = [
-  { id: "skybox", label: "Change Skybox", angle: 180 },
+  { id: "skybox", label: "Create Skybox", angle: 180 },
   { id: "place", label: "Place Object", angle: 0 },
 ]
 
@@ -21,6 +22,7 @@ export default function HUD() {
   const [hoveredTool, setHoveredTool] = useState<string | null>(null)
   const [selectedTool, setSelectedTool] = useState<string | null>(null)
   const [mouse, setMouse] = useState({ x: 0, y: 0 })
+  const [skyboxPromptOpen, setSkyboxPromptOpen] = useState(false)
 
   const menuKey = useMemo(() => ({ code: MENU_KEY_CODE, label: formatKey(MENU_KEY_CODE) }), [])
 
@@ -43,6 +45,8 @@ export default function HUD() {
   }, [])
 
   // When radial menu is open, ensure cursor is visible by exiting pointer lock.
+  // Pointer lock is entered by clicking the WebGL canvas; that hides the OS cursor.
+  // For UI interaction we exit pointer lock and render our own custom cursor.
   useEffect(() => {
     if (!menuHeld) return
     if (document.pointerLockElement) document.exitPointerLock()
@@ -50,7 +54,7 @@ export default function HUD() {
 
   const handleToolClick = (toolId: string) => {
     setSelectedTool(toolId)
-    console.log("Selected tool:", toolId)
+    if (toolId === "skybox") setSkyboxPromptOpen(true)
   }
 
   return (
@@ -110,6 +114,15 @@ export default function HUD() {
           <CustomCursor x={mouse.x} y={mouse.y} variant={hoveredTool ? "hover" : "default"} />
         </div>
       )}
+
+      <PromptModal
+        isOpen={skyboxPromptOpen}
+        onClose={() => setSkyboxPromptOpen(false)}
+        onSubmit={(prompt) => {
+          // TODO: hook into skybox generation pipeline
+          console.log("Skybox prompt:", prompt)
+        }}
+      />
     </div>
   )
 }

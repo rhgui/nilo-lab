@@ -1,8 +1,13 @@
 export type HoldKeyTrackerOptions = {
+  /** KeyboardEvent.code (e.g. "KeyQ", "Escape"). */
   code: string
   target?: Window | HTMLElement
 }
 
+/**
+ * Tracks a "hold" state for a single KeyboardEvent.code and notifies subscribers.
+ * This is intentionally dumb/simple: no debounce, no threshold; just down/up.
+ */
 export class HoldKeyTracker {
   private readonly code: string
   private readonly target: Window | HTMLElement

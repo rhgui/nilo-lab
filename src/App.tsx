@@ -1,4 +1,4 @@
-import World from "./components/World"
+import World from "./game/World"
 import HUD from "./components/hud/HUD"
 
 function App() {

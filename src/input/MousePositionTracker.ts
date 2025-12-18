@@ -1,20 +1,28 @@
+/**
+ * Screen-space mouse position in CSS pixels (viewport coordinates).
+ * Useful for UI overlays (e.g. custom cursor).
+ */
 export type MousePosition = { x: number; y: number }
 
+/**
+ * Small event-to-subscription adapter for mouse position tracking.
+ * Keeps UI components free of raw event listeners.
+ */
 export class MousePositionTracker {
+  private readonly target: Window | HTMLElement
   private pos: MousePosition = { x: 0, y: 0 }
   private readonly listeners = new Set<(pos: MousePosition) => void>()
 
   constructor(target: Window | HTMLElement = window) {
+    this.target = target
     this.onMove = this.onMove.bind(this)
-    target.addEventListener("mousemove", this.onMove as EventListener)
-    this.dispose = () => {
-      target.removeEventListener("mousemove", this.onMove as EventListener)
-      this.listeners.clear()
-    }
+    this.target.addEventListener("mousemove", this.onMove as EventListener)
   }
 
-  // Replaced in constructor to capture target.
-  dispose() {}
+  dispose() {
+    this.target.removeEventListener("mousemove", this.onMove as EventListener)
+    this.listeners.clear()
+  }
 
   getPosition() {
     return this.pos

@@ -3,10 +3,16 @@ import * as THREE from "three"
 export type GridMaterialOptions = {
   gridColor?: THREE.ColorRepresentation
   baseColor?: THREE.ColorRepresentation
+  /** Grid UV scale in world units. Higher = denser grid. */
   scale?: number
+  /** AA line thickness in "pixel-ish" derivative space. */
   lineWidth?: number
 }
 
+/**
+ * Anti-aliased grid material (finite plane).
+ * Uses screen-space derivatives (fwidth) for smooth lines.
+ */
 export function createGridMaterial(options: GridMaterialOptions = {}) {
   const {
     gridColor = "#ebe6e6",
@@ -49,6 +55,8 @@ export function createGridMaterial(options: GridMaterialOptions = {}) {
       varying vec3 vWorldPos;
 
       float gridAA(vec2 coord) {
+        // Distance to closest grid line in each axis, normalized by derivatives
+        // to keep consistent thickness across zoom levels.
         vec2 g = abs(fract(coord - 0.5) - 0.5) / fwidth(coord);
         float line = min(g.x, g.y);
         return 1.0 - smoothstep(0.0, uLineWidth, line);

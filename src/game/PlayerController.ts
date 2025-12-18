@@ -2,12 +2,24 @@ import * as THREE from "three"
 
 export type PlayerControllerOptions = {
   domElement: HTMLElement
+  /** Units per second (roughly) on a flat plane. */
   moveSpeed?: number
+  /** Higher = slows down faster after releasing keys. */
   damping?: number
+  /** Mouse sensitivity while pointer-locked. */
   mouseSensitivity?: number
+  /** Clamp camera pitch to avoid flipping over. */
   pitchLimit?: number
 }
 
+/**
+ * Minimal player controller:
+ * - Click canvas to enter pointer lock
+ * - Mouse changes yaw/pitch (stored here)
+ * - WASD moves the given Object3D on the XZ plane relative to yaw
+ *
+ * Note: this does NOT do collision/physics; that's a later layer.
+ */
 export class PlayerController {
   private readonly domElement: HTMLElement
   private readonly keys = { w: false, a: false, s: false, d: false }
@@ -59,7 +71,8 @@ export class PlayerController {
   update(dt: number, player: THREE.Object3D) {
     player.rotation.y = this.yaw
 
-    // WASD movement on XZ plane, relative to facing (yaw)
+    // WASD movement on XZ plane, relative to facing (yaw).
+    // We intentionally ignore pitch for movement so the player doesn't fly.
     const forward = this._forward.clone().applyAxisAngle(this._up, this.yaw)
     const right = this._right.clone().applyAxisAngle(this._up, this.yaw)
 
@@ -100,6 +113,7 @@ export class PlayerController {
   }
 
   private readonly onMouseMove = (e: MouseEvent) => {
+    // Pointer lock hides the OS cursor and provides movementX/Y deltas.
     if (document.pointerLockElement !== this.domElement) return
 
     this.yaw -= e.movementX * this.mouseSensitivity

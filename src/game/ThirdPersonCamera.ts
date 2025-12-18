@@ -2,11 +2,18 @@ import * as THREE from "three"
 
 export type ThirdPersonCameraOptions = {
   camera: THREE.PerspectiveCamera
+  /** Added to player.position for look-at target (e.g. head height). */
   targetOffset?: THREE.Vector3
+  /** Distance behind the target. */
   distance?: number
+  /** Height above the target. */
   height?: number
 }
 
+/**
+ * Simple third-person follow camera that keeps the player centered.
+ * Camera orbits around the target using controller yaw/pitch.
+ */
 export class ThirdPersonCamera {
   private readonly camera: THREE.PerspectiveCamera
   private readonly targetOffset: THREE.Vector3

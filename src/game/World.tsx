@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react"
 import * as THREE from "three"
-import { createGridMaterial } from "../lib/gridMaterial"
-import { PlayerController } from "../lib/PlayerController"
-import { ThirdPersonCamera } from "../lib/ThirdPersonCamera"
+import { createGridMaterial } from "./gridMaterial"
+import { PlayerController } from "./PlayerController"
+import { ThirdPersonCamera } from "./ThirdPersonCamera"
 
 export default function World() {
   const hostRef = useRef<HTMLDivElement | null>(null)
@@ -11,6 +11,8 @@ export default function World() {
     const host = hostRef.current
     if (!host) return
 
+    // Basic Three.js bootstrap (renderer/scene/camera) owned by this component.
+    // Keep cleanup here so hot-reloads don't leak WebGL contexts or listeners.
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
       powerPreference: "high-performance",
