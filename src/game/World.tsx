@@ -3,16 +3,52 @@ import * as THREE from "three"
 import { createGridMaterial } from "./gridMaterial"
 import { PlayerController } from "./PlayerController"
 import { ThirdPersonCamera } from "./ThirdPersonCamera"
-import defaultSkyboxUrl from "../assets/default_skybox.png"
 
 export type WorldProps = {
   controlsEnabled: boolean
+  skyboxUrl: string
+  playerName: string
 }
 
-export default function World({ controlsEnabled }: WorldProps) {
+function createNameSprite(name: string) {
+  const canvas = document.createElement("canvas")
+  canvas.width = 512
+  canvas.height = 128
+  const ctx = canvas.getContext("2d")
+  if (!ctx) throw new Error("2D canvas context not available")
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+  ctx.font = "700 56px system-ui, -apple-system, Segoe UI, Roboto, Arial"
+  ctx.textAlign = "center"
+  ctx.textBaseline = "middle"
+
+  // subtle stroke for readability
+  ctx.lineWidth = 10
+  ctx.strokeStyle = "rgba(0,0,0,0.55)"
+  ctx.strokeText(name, canvas.width / 2, canvas.height / 2)
+
+  ctx.fillStyle = "rgba(255,255,255,0.92)"
+  ctx.fillText(name, canvas.width / 2, canvas.height / 2)
+
+  const tex = new THREE.CanvasTexture(canvas)
+  tex.colorSpace = THREE.SRGBColorSpace
+  tex.needsUpdate = true
+
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false })
+  const sprite = new THREE.Sprite(mat)
+  sprite.scale.set(2.2, 0.55, 1)
+
+  return { sprite, texture: tex }
+}
+
+export default function World({ controlsEnabled, skyboxUrl, playerName }: WorldProps) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const controllerRef = useRef<PlayerController | null>(null)
   const rendererDomRef = useRef<HTMLCanvasElement | null>(null)
+  const sceneRef = useRef<THREE.Scene | null>(null)
+  const skyboxTexRef = useRef<THREE.Texture | null>(null)
+  const texLoaderRef = useRef<THREE.TextureLoader | null>(null)
+  const nameSpriteRef = useRef<{ sprite: THREE.Sprite; texture: THREE.Texture } | null>(null)
 
   useEffect(() => {
     controllerRef.current?.setEnabled(controlsEnabled)
@@ -20,6 +56,35 @@ export default function World({ controlsEnabled }: WorldProps) {
     // If UI is blocking input, ensure pointer lock is released.
     if (!controlsEnabled && document.pointerLockElement) document.exitPointerLock()
   }, [controlsEnabled])
+
+  useEffect(() => {
+    const scene = sceneRef.current
+    const loader = texLoaderRef.current
+    if (!scene || !loader) return
+
+    const prev = skyboxTexRef.current
+    const tex = loader.load(skyboxUrl)
+    tex.colorSpace = THREE.SRGBColorSpace
+    tex.mapping = THREE.EquirectangularReflectionMapping
+    scene.background = tex
+    skyboxTexRef.current = tex
+    prev?.dispose()
+  }, [skyboxUrl])
+
+  useEffect(() => {
+    const scene = sceneRef.current
+    if (!scene) return
+
+    // Replace tag on name change.
+    const prev = nameSpriteRef.current
+    prev?.sprite.removeFromParent()
+    ;(prev?.sprite.material as THREE.Material | undefined)?.dispose?.()
+    prev?.texture.dispose()
+
+    const created = createNameSprite(playerName)
+    nameSpriteRef.current = created
+    scene.add(created.sprite)
+  }, [playerName])
 
   useEffect(() => {
     const host = hostRef.current
@@ -37,17 +102,19 @@ export default function World({ controlsEnabled }: WorldProps) {
     rendererDomRef.current = renderer.domElement
 
     const scene = new THREE.Scene()
+    sceneRef.current = scene
 
     const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 2000)
     camera.position.set(0, 2, 6)
 
-    // Use the provided default image as an equirectangular background.
-    // (If the image isn't equirectangular, it will still render as a background texture.)
+    // Background skybox (updates via skyboxUrl prop).
     const texLoader = new THREE.TextureLoader()
-    const skyboxTex = texLoader.load(defaultSkyboxUrl)
-    skyboxTex.colorSpace = THREE.SRGBColorSpace
-    skyboxTex.mapping = THREE.EquirectangularReflectionMapping
-    scene.background = skyboxTex
+    texLoaderRef.current = texLoader
+    const initialSkybox = texLoader.load(skyboxUrl)
+    initialSkybox.colorSpace = THREE.SRGBColorSpace
+    initialSkybox.mapping = THREE.EquirectangularReflectionMapping
+    scene.background = initialSkybox
+    skyboxTexRef.current = initialSkybox
 
     // Lights (subtle, mostly for future objects)
     scene.add(new THREE.AmbientLight(0xffffff, 0.35))
@@ -72,6 +139,11 @@ export default function World({ controlsEnabled }: WorldProps) {
     player.receiveShadow = false
     player.position.set(0, playerRadius + playerHeight * 0.5, 0)
     scene.add(player)
+
+    // Name tag
+    const nameTag = createNameSprite(playerName)
+    nameSpriteRef.current = nameTag
+    scene.add(nameTag.sprite)
 
     const playerController = new PlayerController({ domElement: renderer.domElement })
     playerController.setEnabled(controlsEnabled)
@@ -104,6 +176,11 @@ export default function World({ controlsEnabled }: WorldProps) {
       // Keep player centered in view
       followCam.update(player, playerController.getYaw(), playerController.getPitch())
 
+      // Keep name tag above player head
+      if (nameSpriteRef.current) {
+        nameSpriteRef.current.sprite.position.set(player.position.x, player.position.y + 1.1, player.position.z)
+      }
+
       renderer.render(scene, camera)
     }
     tick()
@@ -117,11 +194,20 @@ export default function World({ controlsEnabled }: WorldProps) {
       gridMat.dispose()
       playerGeo.dispose()
       playerMat.dispose()
-      skyboxTex.dispose()
+      skyboxTexRef.current?.dispose()
+      if (nameSpriteRef.current) {
+        nameSpriteRef.current.sprite.removeFromParent()
+        ;(nameSpriteRef.current.sprite.material as THREE.Material).dispose()
+        nameSpriteRef.current.texture.dispose()
+        nameSpriteRef.current = null
+      }
       renderer.dispose()
       host.removeChild(renderer.domElement)
       controllerRef.current = null
       rendererDomRef.current = null
+      sceneRef.current = null
+      texLoaderRef.current = null
+      skyboxTexRef.current = null
     }
   }, [])
 
