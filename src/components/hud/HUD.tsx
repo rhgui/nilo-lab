@@ -17,7 +17,11 @@ const tools = [
   { id: "place", label: "Place Object", angle: 0 },
 ]
 
-export default function HUD() {
+export type HUDProps = {
+  onUiBlockingChange?: (blocking: boolean) => void
+}
+
+export default function HUD({ onUiBlockingChange }: HUDProps) {
   const [menuHeld, setMenuHeld] = useState(false)
   const [hoveredTool, setHoveredTool] = useState<string | null>(null)
   const [selectedTool, setSelectedTool] = useState<string | null>(null)
@@ -51,6 +55,11 @@ export default function HUD() {
     if (!menuHeld) return
     if (document.pointerLockElement) document.exitPointerLock()
   }, [menuHeld])
+
+  useEffect(() => {
+    onUiBlockingChange?.(skyboxPromptOpen)
+    if (skyboxPromptOpen && document.pointerLockElement) document.exitPointerLock()
+  }, [onUiBlockingChange, skyboxPromptOpen])
 
   const handleToolClick = (toolId: string) => {
     setSelectedTool(toolId)

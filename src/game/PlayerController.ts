@@ -24,6 +24,7 @@ export class PlayerController {
   private readonly domElement: HTMLElement
   private readonly keys = { w: false, a: false, s: false, d: false }
 
+  private enabled = true
   private yaw = 0
   private pitch = 0
 
@@ -60,6 +61,23 @@ export class PlayerController {
     window.removeEventListener("mousemove", this.onMouseMove)
   }
 
+  setEnabled(enabled: boolean) {
+    this.enabled = enabled
+
+    // When disabling input, stop movement immediately and clear held keys.
+    if (!enabled) {
+      this.keys.w = false
+      this.keys.a = false
+      this.keys.s = false
+      this.keys.d = false
+      this.velocity.set(0, 0, 0)
+    }
+  }
+
+  getEnabled() {
+    return this.enabled
+  }
+
   getYaw() {
     return this.yaw
   }
@@ -69,6 +87,8 @@ export class PlayerController {
   }
 
   update(dt: number, player: THREE.Object3D) {
+    if (!this.enabled) return
+
     player.rotation.y = this.yaw
 
     // WASD movement on XZ plane, relative to facing (yaw).
@@ -95,10 +115,12 @@ export class PlayerController {
   }
 
   private readonly requestPointerLock = () => {
+    if (!this.enabled) return
     this.domElement.requestPointerLock?.()
   }
 
   private readonly onKeyDown = (e: KeyboardEvent) => {
+    if (!this.enabled) return
     if (e.code === "KeyW") this.keys.w = true
     if (e.code === "KeyA") this.keys.a = true
     if (e.code === "KeyS") this.keys.s = true
@@ -106,6 +128,7 @@ export class PlayerController {
   }
 
   private readonly onKeyUp = (e: KeyboardEvent) => {
+    if (!this.enabled) return
     if (e.code === "KeyW") this.keys.w = false
     if (e.code === "KeyA") this.keys.a = false
     if (e.code === "KeyS") this.keys.s = false
@@ -113,6 +136,7 @@ export class PlayerController {
   }
 
   private readonly onMouseMove = (e: MouseEvent) => {
+    if (!this.enabled) return
     // Pointer lock hides the OS cursor and provides movementX/Y deltas.
     if (document.pointerLockElement !== this.domElement) return
 

@@ -3,9 +3,23 @@ import * as THREE from "three"
 import { createGridMaterial } from "./gridMaterial"
 import { PlayerController } from "./PlayerController"
 import { ThirdPersonCamera } from "./ThirdPersonCamera"
+import defaultSkyboxUrl from "../assets/default_skybox.png"
 
-export default function World() {
+export type WorldProps = {
+  controlsEnabled: boolean
+}
+
+export default function World({ controlsEnabled }: WorldProps) {
   const hostRef = useRef<HTMLDivElement | null>(null)
+  const controllerRef = useRef<PlayerController | null>(null)
+  const rendererDomRef = useRef<HTMLCanvasElement | null>(null)
+
+  useEffect(() => {
+    controllerRef.current?.setEnabled(controlsEnabled)
+
+    // If UI is blocking input, ensure pointer lock is released.
+    if (!controlsEnabled && document.pointerLockElement) document.exitPointerLock()
+  }, [controlsEnabled])
 
   useEffect(() => {
     const host = hostRef.current
@@ -20,11 +34,20 @@ export default function World() {
     renderer.setClearColor(0x0b0b0b, 1)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
     host.appendChild(renderer.domElement)
+    rendererDomRef.current = renderer.domElement
 
     const scene = new THREE.Scene()
 
     const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 2000)
     camera.position.set(0, 2, 6)
+
+    // Use the provided default image as an equirectangular background.
+    // (If the image isn't equirectangular, it will still render as a background texture.)
+    const texLoader = new THREE.TextureLoader()
+    const skyboxTex = texLoader.load(defaultSkyboxUrl)
+    skyboxTex.colorSpace = THREE.SRGBColorSpace
+    skyboxTex.mapping = THREE.EquirectangularReflectionMapping
+    scene.background = skyboxTex
 
     // Lights (subtle, mostly for future objects)
     scene.add(new THREE.AmbientLight(0xffffff, 0.35))
@@ -51,6 +74,8 @@ export default function World() {
     scene.add(player)
 
     const playerController = new PlayerController({ domElement: renderer.domElement })
+    playerController.setEnabled(controlsEnabled)
+    controllerRef.current = playerController
     const followCam = new ThirdPersonCamera({ camera })
 
     const resize = () => {
@@ -92,8 +117,11 @@ export default function World() {
       gridMat.dispose()
       playerGeo.dispose()
       playerMat.dispose()
+      skyboxTex.dispose()
       renderer.dispose()
       host.removeChild(renderer.domElement)
+      controllerRef.current = null
+      rendererDomRef.current = null
     }
   }, [])
 
