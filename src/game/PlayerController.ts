@@ -10,6 +10,8 @@ export type PlayerControllerOptions = {
   mouseSensitivity?: number
   /** Clamp camera pitch to avoid flipping over. */
   pitchLimit?: number
+  /** Jump force (units/sec upward velocity). */
+  jumpForce?: number
 }
 
 /**
@@ -22,7 +24,7 @@ export type PlayerControllerOptions = {
  */
 export class PlayerController {
   private readonly domElement: HTMLElement
-  private readonly keys = { w: false, a: false, s: false, d: false }
+  private readonly keys = { w: false, a: false, s: false, d: false, space: false }
 
   private enabled = true
   private yaw = 0
@@ -33,6 +35,7 @@ export class PlayerController {
   private readonly damping: number
   private readonly mouseSensitivity: number
   private readonly pitchLimit: number
+  private readonly jumpForce: number
 
   private readonly _forward = new THREE.Vector3(0, 0, -1)
   private readonly _right = new THREE.Vector3(1, 0, 0)
@@ -41,10 +44,11 @@ export class PlayerController {
 
   constructor(options: PlayerControllerOptions) {
     this.domElement = options.domElement
-    this.moveSpeed = options.moveSpeed ?? 2.5
+    this.moveSpeed = options.moveSpeed ?? 20.0
     this.damping = options.damping ?? 10.0
     this.mouseSensitivity = options.mouseSensitivity ?? 0.0022
     this.pitchLimit = options.pitchLimit ?? Math.PI / 2.2
+    this.jumpForce = options.jumpForce ?? 7.0
 
     this.domElement.style.cursor = "crosshair"
 
@@ -70,6 +74,7 @@ export class PlayerController {
       this.keys.a = false
       this.keys.s = false
       this.keys.d = false
+      this.keys.space = false
       this.velocity.set(0, 0, 0)
     }
   }
@@ -86,7 +91,15 @@ export class PlayerController {
     return this.pitch
   }
 
-  update(dt: number, player: THREE.Object3D) {
+  getVelocity() {
+    return this.velocity.clone()
+  }
+
+  setVelocityY(y: number) {
+    this.velocity.y = y
+  }
+
+  update(dt: number, player: THREE.Object3D, isGrounded: boolean = true) {
     if (!this.enabled) return
 
     player.rotation.y = this.yaw
@@ -109,9 +122,29 @@ export class PlayerController {
     const damp = Math.exp(-this.damping * dt)
     this.velocity.x *= damp
     this.velocity.z *= damp
+    
+    // Jump (only when grounded) - check if space was just pressed
+    let justJumped = false
+    if (this.keys.space && isGrounded) {
+      // Only jump if not already moving up significantly
+      if (this.velocity.y <= 0.1) {
+        this.velocity.y = this.jumpForce
+        justJumped = true
+      }
+    }
+    
+    // Y velocity damping only when not grounded (falling)
+    if (!isGrounded) {
+      // Don't damp Y, let gravity handle it
+    } else if (this.velocity.y > 0 && !justJumped) {
+      // If grounded and moving up, stop upward movement
+      // BUT: don't reset if we just jumped this frame
+      this.velocity.y = 0
+    }
 
-    player.position.x += this.velocity.x
-    player.position.z += this.velocity.z
+    // Only apply XZ movement here, Y is handled by caller (physics or gravity)
+    player.position.x += this.velocity.x * dt
+    player.position.z += this.velocity.z * dt
   }
 
   private readonly requestPointerLock = () => {
@@ -125,6 +158,7 @@ export class PlayerController {
     if (e.code === "KeyA") this.keys.a = true
     if (e.code === "KeyS") this.keys.s = true
     if (e.code === "KeyD") this.keys.d = true
+    if (e.code === "Space") this.keys.space = true
   }
 
   private readonly onKeyUp = (e: KeyboardEvent) => {
@@ -133,6 +167,7 @@ export class PlayerController {
     if (e.code === "KeyA") this.keys.a = false
     if (e.code === "KeyS") this.keys.s = false
     if (e.code === "KeyD") this.keys.d = false
+    if (e.code === "Space") this.keys.space = false
   }
 
   private readonly onMouseMove = (e: MouseEvent) => {
