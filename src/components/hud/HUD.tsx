@@ -4,7 +4,9 @@ import { MousePositionTracker } from "../../input/MousePositionTracker"
 import styles from "./hud.module.css"
 import CustomCursor from "./CustomCursor"
 import PromptModal from "./PromptModal"
+import InventoryToolbar, { type InventoryItem } from "./InventoryToolbar"
 import { generateSkyboxImage } from "../../services/falSkybox"
+import { useMutation, useStorage, useOthers } from "../../liveblocks.config"
 
 const MENU_KEY_CODE = "ShiftLeft"
 // controls toggle key code
@@ -18,22 +20,47 @@ function formatKey(code: string) {
 
 const tools = [
   { id: "skybox", label: "Create Skybox", angle: 180 },
-  { id: "place", label: "Place Object", angle: 0 },
+  { id: "generate", label: "Generate Object", angle: 0 },
 ]
 
 export type HUDProps = {
   onUiBlockingChange?: (blocking: boolean) => void
-  onSkyboxUrlChange?: (url: string) => void
+  selectedInventoryIndex?: number
+  onSelectedInventoryChange?: (index: number) => void
+  actionLog?: Array<{ label: string; time: Date }>
+  uiBlocking?: boolean
 }
 
-export default function HUD({ onUiBlockingChange, onSkyboxUrlChange }: HUDProps) {
+const defaultInventoryItems: InventoryItem[] = [
+  // for now we only have 3 items
+  { id: "empty", label: "Empty" },
+  { id: "cube", label: "Cube" },
+  { id: "sphere", label: "Sphere" },
+]
+
+export default function HUD({ onUiBlockingChange, selectedInventoryIndex, onSelectedInventoryChange, actionLog: externalActionLog, uiBlocking = false }: HUDProps) {
   const [menuHeld, setMenuHeld] = useState(false)
   const [hoveredTool, setHoveredTool] = useState<string | null>(null)
   const [mouse, setMouse] = useState({ x: 0, y: 0 })
   const [skyboxPromptOpen, setSkyboxPromptOpen] = useState(false)
   const [skyboxLoading, setSkyboxLoading] = useState(false)
+  const [inventoryIndex, setInventoryIndex] = useState(selectedInventoryIndex ?? 0)
+  // keep storage subscribed (may be used later for UI)
+  useStorage((root) => root.skyboxUrl)
+
+  const setSkyboxUrl = useMutation(({ storage }, url: string) => {
+    storage.set("skyboxUrl", url)
+  }, [])
   const [controlsVisible, setControlsVisible] = useState(true)
-  const [actionLog, setActionLog] = useState<Array<{ label: string; time: Date }>>([])
+  const [internalActionLog, setInternalActionLog] = useState<Array<{ label: string; time: Date }>>([])
+  const actionLog = externalActionLog ?? internalActionLog
+  const others = useOthers()
+
+  useEffect(() => {
+    if (onSelectedInventoryChange) {
+      onSelectedInventoryChange(inventoryIndex)
+    }
+  }, [inventoryIndex, onSelectedInventoryChange])
 
   const menuKey = useMemo(() => ({ code: MENU_KEY_CODE, label: formatKey(MENU_KEY_CODE) }), [])
   const controlsToggleKey = useMemo(
@@ -83,7 +110,11 @@ export default function HUD({ onUiBlockingChange, onSkyboxUrlChange }: HUDProps)
   }, [onUiBlockingChange, skyboxPromptOpen])
 
   const pushAction = (label: string) => {
-    setActionLog((prev) => {
+    if (externalActionLog) {
+      // If external actionLog is provided, it's managed by parent
+      return
+    }
+    setInternalActionLog((prev) => {
       const next = [{ label, time: new Date() }, ...prev]
       return next.slice(0, 5)
     })
@@ -115,6 +146,10 @@ export default function HUD({ onUiBlockingChange, onSkyboxUrlChange }: HUDProps)
               <span className={styles.text}>Move</span>
             </div>
             <div className={styles.row}>
+              <span className={styles.key}>Space</span>
+              <span className={styles.text}>Jump</span>
+            </div>
+            <div className={styles.row}>
               <span className={styles.key}>Mouse</span>
               <span className={styles.text}>Look (click canvas to lock)</span>
             </div>
@@ -122,8 +157,37 @@ export default function HUD({ onUiBlockingChange, onSkyboxUrlChange }: HUDProps)
               <span className={styles.key}>Hold {menuKey.label}</span>
               <span className={styles.text}>Radial menu</span>
             </div>
+            <div className={styles.row}>
+              <span className={styles.key}>1/2/3</span>
+              <span className={styles.text}>Change item</span>
+            </div>
+            <div className={styles.row}>
+              <span className={styles.key}>Scroll</span>
+              <span className={styles.text}>Rotate item</span>
+            </div>
+            <div className={styles.row}>
+              <span className={styles.key}>Z</span>
+              <span className={styles.text}>Toggle snap mode</span>
+            </div>
+            <div className={styles.row}>
+              <span className={styles.key}>Del</span>
+              <span className={styles.text}>Delete all props</span>
+            </div>
+            <div className={styles.row}>
+              <span className={styles.key}>↑/↓</span>
+              <span className={styles.text}>Adjust height</span>
+            </div>
+            <div className={styles.row}>
+              <span className={styles.key}>←/→</span>
+              <span className={styles.text}>Adjust width</span>
+            </div>
           </>
         )}
+      </div>
+
+      <div className={styles.playersOnline}>
+        <span className={styles.onlineDot} aria-hidden />
+        <span className={styles.playersOnlineText}>{others.length + 1} online</span>
       </div>
 
       {actionLog.length > 0 && (
@@ -171,6 +235,13 @@ export default function HUD({ onUiBlockingChange, onSkyboxUrlChange }: HUDProps)
         </div>
       )}
 
+      <InventoryToolbar
+        items={defaultInventoryItems}
+        selectedIndex={inventoryIndex}
+        onSelectedChange={setInventoryIndex}
+        disabled={skyboxPromptOpen || uiBlocking}
+      />
+
       <PromptModal
         isOpen={skyboxPromptOpen}
         onClose={() => setSkyboxPromptOpen(false)}
@@ -182,7 +253,7 @@ export default function HUD({ onUiBlockingChange, onSkyboxUrlChange }: HUDProps)
             setSkyboxLoading(true)
             pushAction("Generating skybox…")
             const { imageUrl } = await generateSkyboxImage({ prompt })
-            onSkyboxUrlChange?.(imageUrl)
+            setSkyboxUrl(imageUrl)
             pushAction("Skybox updated")
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err)
