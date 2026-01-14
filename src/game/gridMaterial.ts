@@ -25,6 +25,7 @@ export function createGridMaterial(options: GridMaterialOptions = {}) {
     transparent: false,
     depthWrite: true,
     side: THREE.DoubleSide,
+    vertexColors: true, // Enable vertex colors for painting
     // three has this at runtime; TS types lag behind sometimes
     extensions: { derivatives: true } as unknown as THREE.ShaderMaterialParameters["extensions"],
     uniforms: {
@@ -35,10 +36,16 @@ export function createGridMaterial(options: GridMaterialOptions = {}) {
     },
     vertexShader: /* glsl */ `
       varying vec3 vWorldPos;
+      varying vec3 vColor;
 
       void main() {
         vec4 world = modelMatrix * vec4(position, 1.0);
         vWorldPos = world.xyz;
+        #ifdef USE_COLOR
+          vColor = color;
+        #else
+          vColor = vec3(1.0);
+        #endif
         gl_Position = projectionMatrix * viewMatrix * world;
       }
     `,
@@ -53,6 +60,7 @@ export function createGridMaterial(options: GridMaterialOptions = {}) {
       uniform float uLineWidth;
 
       varying vec3 vWorldPos;
+      varying vec3 vColor;
 
       float gridAA(vec2 coord) {
         // Distance to closest grid line in each axis, normalized by derivatives
@@ -69,7 +77,8 @@ export function createGridMaterial(options: GridMaterialOptions = {}) {
         float major = gridAA(p * 0.1) * 0.75;
 
         float grid = clamp(minor + major, 0.0, 1.0);
-        vec3 col = mix(uBaseColor, uGridColor, grid);
+        vec3 baseCol = mix(uBaseColor, uGridColor, grid);
+        vec3 col = baseCol * vColor; // Multiply by vertex color for painting
         gl_FragColor = vec4(col, 1.0);
       }
     `,

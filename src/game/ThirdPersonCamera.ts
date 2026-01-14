@@ -40,6 +40,13 @@ export class ThirdPersonCamera {
 
     this.camera.position.copy(this._target).add(this._offset)
 
+    // Prevent camera from going below ground (y = 0 is ground level)
+    // Add a minimum height above ground to prevent clipping through floor
+    const minCameraHeight = 0.3 // Minimum height above ground
+    if (this.camera.position.y < minCameraHeight) {
+      this.camera.position.y = minCameraHeight
+    }
+
     // Keep player centered.
     this.camera.lookAt(this._target)
   }
