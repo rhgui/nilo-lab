@@ -542,10 +542,8 @@ export default function World({ controlsEnabled, playerName, selectedInventoryIt
       // IMPORTANT: Meshy CloudFront signed URLs have two possible issues:
       // 1. CORS: Meshy doesn't send CORS headers, so direct loading fails
       // 2. IP restrictions: Some URLs (especially animation URLs) include IP in signature
-      // 
-      // Strategy: Try direct loading first. If CORS error (not 403), retry with proxy.
       const isMeshyUrl = selectedInventoryModelUrl.includes('assets.meshy.ai')
-      const loadUrl = selectedInventoryModelUrl // Try direct loading first
+      const loadUrl = isMeshyUrl ? `/api/meshy/proxy?url=${encodeURIComponent(selectedInventoryModelUrl)}` : selectedInventoryModelUrl
       // Prefer cached template for instant preview
       const cachedTemplate = modelCacheRef.current.get(selectedInventoryModelUrl)
       if (cachedTemplate) {
@@ -574,16 +572,8 @@ export default function World({ controlsEnabled, playerName, selectedInventoryIt
         }
         
         const onPreviewError = (error: unknown) => {
-          // Try proxy fallback for Meshy URLs if CORS error (not 403)
-          const errorMsg = error && typeof error === 'object' && 'message' in error ? String(error.message) : "Unknown error"
-          const errorMsgLower = errorMsg.toLowerCase()
-          const isCorsError = errorMsgLower.includes('cors') || 
-                             errorMsgLower.includes('cross-origin') ||
-                             errorMsgLower.includes('access-control')
-          const is403Error = errorMsg.includes('403') || errorMsg.includes('Forbidden')
-          
-          if (isMeshyUrl && isCorsError && !is403Error) {
-            console.log("[Preview] CORS error on direct load, retrying with proxy...")
+          console.error("[Preview] Failed to load preview model:", error)
+          if (!isMeshyUrl) {
             const proxyUrl = `/api/meshy/proxy?url=${encodeURIComponent(selectedInventoryModelUrl)}`
             loader.load(
               proxyUrl,
@@ -593,11 +583,6 @@ export default function World({ controlsEnabled, playerName, selectedInventoryIt
                 console.error("[Preview] Failed to load preview model via proxy:", proxyError)
               }
             )
-          } else {
-            console.error("[Preview] Failed to load preview model:", error)
-            if (is403Error) {
-              console.error("[Preview] ❌ 403 Forbidden - URL has IP restrictions and cannot be loaded")
-            }
           }
         }
         
@@ -763,16 +748,10 @@ export default function World({ controlsEnabled, playerName, selectedInventoryIt
     // Load GLB model if available (will replace capsule)
     if (playerModelUrl) {
       const loader = new GLTFLoader()
-      // IMPORTANT: Meshy CloudFront signed URLs have two possible issues:
-      // 1. CORS: Meshy doesn't send CORS headers, so direct loading fails
-      // 2. IP restrictions: Some URLs (especially animation URLs) include IP in signature
-      // 
-      // Strategy: Try direct loading first. If CORS error (not 403), retry with proxy.
-      // If 403 error, the URL has IP restrictions and cannot be loaded.
       const isMeshyUrl = playerModelUrl.includes('assets.meshy.ai')
-      const loadUrl = playerModelUrl // Try direct loading first
+      const loadUrl = isMeshyUrl ? `/api/meshy/proxy?url=${encodeURIComponent(playerModelUrl)}` : playerModelUrl
       
-      console.log("[World] Loading player model from:", loadUrl, isMeshyUrl ? "(Meshy URL - direct load)" : "")
+      console.log("[World] Loading player model from:", loadUrl, isMeshyUrl ? "(Meshy URL - using proxy)" : "")
       
       loader.load(
         loadUrl,
@@ -828,21 +807,12 @@ export default function World({ controlsEnabled, playerName, selectedInventoryIt
         },
         undefined,
         (error) => {
-          // Try proxy fallback for Meshy URLs if CORS error (not 403)
-          const errorMsg = error && typeof error === 'object' && 'message' in error ? String(error.message) : "Unknown error"
-          const errorMsgLower = errorMsg.toLowerCase()
-          const isCorsError = errorMsgLower.includes('cors') || 
-                             errorMsgLower.includes('cross-origin') ||
-                             errorMsgLower.includes('access-control')
-          const is403Error = errorMsg.includes('403') || errorMsg.includes('Forbidden')
-          
-          if (isMeshyUrl && isCorsError && !is403Error) {
-            console.log("[World] CORS error on direct load, retrying with proxy...")
+          console.error("Failed to load player model, keeping capsule:", error)
+          if (!isMeshyUrl) {
             const proxyUrl = `/api/meshy/proxy?url=${encodeURIComponent(playerModelUrl)}`
             loader.load(
               proxyUrl,
               (gltf) => {
-                // Same success handler as above
                 const model = gltf.scene
                 const bbox = new THREE.Box3().setFromObject(model)
                 const center = bbox.getCenter(new THREE.Vector3())
@@ -881,11 +851,6 @@ export default function World({ controlsEnabled, playerName, selectedInventoryIt
                 console.error("Failed to load player model via proxy, keeping capsule:", proxyError)
               }
             )
-          } else {
-            console.error("Failed to load player model, keeping capsule:", error)
-            if (is403Error) {
-              console.error("[World] ❌ 403 Forbidden - URL has IP restrictions and cannot be loaded")
-            }
           }
         }
       )
@@ -1514,15 +1479,9 @@ export default function World({ controlsEnabled, playerName, selectedInventoryIt
             // Mark as loading to prevent duplicate loads
             v.isLoading = true
             
-            // Load remote player's custom model
             const loader = new GLTFLoader()
-            // IMPORTANT: Meshy CloudFront signed URLs have two possible issues:
-            // 1. CORS: Meshy doesn't send CORS headers, so direct loading fails
-            // 2. IP restrictions: Some URLs (especially animation URLs) include IP in signature
-            // 
-            // Strategy: Try direct loading first. If CORS error (not 403), retry with proxy.
             const isMeshyUrl = modelUrlO.includes('assets.meshy.ai')
-            const loadUrl = modelUrlO // Try direct loading first
+            const loadUrl = isMeshyUrl ? `/api/meshy/proxy?url=${encodeURIComponent(modelUrlO)}` : modelUrlO
             const onRemoteModelSuccess = (gltf: any) => {
               const model = gltf.scene
               const bbox = new THREE.Box3().setFromObject(model)
@@ -1552,16 +1511,8 @@ export default function World({ controlsEnabled, playerName, selectedInventoryIt
             }
             
             const onRemoteModelError = (error: unknown) => {
-              // Try proxy fallback for Meshy URLs if CORS error (not 403)
-              const errorMsg = error && typeof error === 'object' && 'message' in error ? String(error.message) : "Unknown error"
-              const errorMsgLower = errorMsg.toLowerCase()
-              const isCorsError = errorMsgLower.includes('cors') || 
-                                 errorMsgLower.includes('cross-origin') ||
-                                 errorMsgLower.includes('access-control')
-              const is403Error = errorMsg.includes('403') || errorMsg.includes('Forbidden')
-              
-              if (isMeshyUrl && isCorsError && !is403Error) {
-                console.log(`[World] CORS error loading remote player model for ${nameO}, retrying with proxy...`)
+              console.error(`Failed to load remote player model for ${nameO}, using capsule:`, error)
+              if (!isMeshyUrl) {
                 const proxyUrl = `/api/meshy/proxy?url=${encodeURIComponent(modelUrlO)}`
                 loader.load(
                   proxyUrl,
@@ -1569,7 +1520,6 @@ export default function World({ controlsEnabled, playerName, selectedInventoryIt
                   undefined,
                   (proxyError) => {
                     console.error(`Failed to load remote player model for ${nameO} via proxy, using capsule:`, proxyError)
-                    // Fallback to capsule
                     const geo = new THREE.CapsuleGeometry(playerRadius, playerHeight, 8, 16)
                     const remotePlayerColor = typeof p?.playerColor === "number" ? p.playerColor : 0xff7b1c
                     const mat = new THREE.MeshStandardMaterial({ color: remotePlayerColor, roughness: 0.5, metalness: 0.0 })
@@ -1581,11 +1531,6 @@ export default function World({ controlsEnabled, playerName, selectedInventoryIt
                   }
                 )
               } else {
-                console.error(`Failed to load remote player model for ${nameO}, using capsule:`, error)
-                if (is403Error) {
-                  console.error(`[World] ❌ 403 Forbidden - URL has IP restrictions and cannot be loaded`)
-                }
-                // Fallback to capsule on error - use playerColor from presence
                 const geo = new THREE.CapsuleGeometry(playerRadius, playerHeight, 8, 16)
                 const remotePlayerColor = typeof p?.playerColor === "number" ? p.playerColor : 0xff7b1c
                 const mat = new THREE.MeshStandardMaterial({ color: remotePlayerColor, roughness: 0.5, metalness: 0.0 })
@@ -1593,7 +1538,7 @@ export default function World({ controlsEnabled, playerName, selectedInventoryIt
                 scene.add(mesh)
                 v!.mesh = mesh
                 v!.modelUrl = null
-                v!.isLoading = false // Mark as done loading (even on error)
+                v!.isLoading = false
               }
             }
             
@@ -1898,14 +1843,8 @@ export default function World({ controlsEnabled, playerName, selectedInventoryIt
               // Mark as loading
               isLoadingModelRef.current = true
               
-              // Load GLB model for community items
-              // IMPORTANT: Meshy CloudFront signed URLs have two possible issues:
-              // 1. CORS: Meshy doesn't send CORS headers, so direct loading fails
-              // 2. IP restrictions: Some URLs (especially animation URLs) include IP in signature
-              // 
-              // Strategy: Try direct loading first. If CORS error (not 403), retry with proxy.
               const isMeshyUrl = modelUrl.includes('assets.meshy.ai')
-              const loadUrl = modelUrl // Try direct loading first
+              const loadUrl = isMeshyUrl ? `/api/meshy/proxy?url=${encodeURIComponent(modelUrl)}` : modelUrl
               
               const onPlacedItemSuccess = (gltf: any) => {
                 if (!sceneRef.current) return
@@ -1984,16 +1923,8 @@ export default function World({ controlsEnabled, playerName, selectedInventoryIt
                 }
               
               const onPlacedItemError = (error: unknown) => {
-                // Try proxy fallback for Meshy URLs if CORS error (not 403)
-                const errorMsg = error && typeof error === 'object' && 'message' in error ? String(error.message) : "Unknown error"
-                const errorMsgLower = errorMsg.toLowerCase()
-                const isCorsError = errorMsgLower.includes('cors') || 
-                                   errorMsgLower.includes('cross-origin') ||
-                                   errorMsgLower.includes('access-control')
-                const is403Error = errorMsg.includes('403') || errorMsg.includes('Forbidden')
-                
-                if (isMeshyUrl && isCorsError && !is403Error) {
-                  console.log("[World] CORS error loading placed item, retrying with proxy...")
+                console.error("Failed to load placed community model:", error)
+                if (!isMeshyUrl) {
                   const proxyUrl = `/api/meshy/proxy?url=${encodeURIComponent(modelUrl)}`
                   gltfLoaderRef.current.load(
                     proxyUrl,
@@ -2035,11 +1966,7 @@ export default function World({ controlsEnabled, playerName, selectedInventoryIt
                   )
                 } else {
                   console.error("Failed to load placed community model:", error)
-                  if (is403Error) {
-                    console.error("[World] ❌ 403 Forbidden - URL has IP restrictions and cannot be loaded")
-                  }
                   
-                  // Remove loading placeholder and text on error
                   const placeholder = placedItemsPlaceholdersRef.current.get(item.id)
                   if (placeholder && sceneRef.current) {
                     sceneRef.current.remove(placeholder)
