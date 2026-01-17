@@ -2,6 +2,11 @@
 
 Nilo Lab is a real-time, collaborative 3D world-building experience that integrates AI-powered asset generation. Built with React, Three.js, and Liveblocks, it allows multiple users to join a shared world, create 3D assets using text and drawings, modify the terrain, and place objects.
 
+## Some Previews
+
+<img width="650" height="400" alt="image" src="https://github.com/user-attachments/assets/d8e7f638-c678-4b23-9d6a-d1bbc0ac175e" />
+<img width="650" height="400" alt="image" src="https://github.com/user-attachments/assets/7f6357f8-a771-4d68-902c-5755a2d32819" />
+
 ## Features
 
 - **Real-time Multiplayer:** A shared, persistent world where users can see and interact with each other's avatars and creations in real-time, powered by Liveblocks.
@@ -71,21 +76,6 @@ npm run dev
 - The Express backend server will run on `http://localhost:3000`.
 
 The Vite development server is configured to proxy all API requests from `/api` to the backend server.
-
-## Project Structure
-
--   `server.js`: The Express backend that serves as a secure proxy for the Meshy.ai API. It handles all AI generation requests.
--   `/src/game`: Contains the core Three.js logic.
-    -   `World.tsx`: The main component that initializes the Three.js scene, manages game state, and renders the 3D environment.
-    -   `PlayerController.ts`: Handles first-person player movement (WASD, jump, mouse look).
-    -   `FreeCameraController.ts`: A fly-cam controller for the terrain editor mode.
-    -   `ThirdPersonCamera.ts`: A follow-camera for the player character.
--   `/src/components`: Contains all React UI components.
-    -   `hud/`: Components for the in-game HUD, including the radial menu, inventory, and toolbars.
-    -   `character/`: The character creation and customization screen.
-    -   `loading/`: The loading screen component.
--   `/src/liveblocks.config.ts`: Defines the data structures (`Presence` and `Storage`) for Liveblocks collaboration.
--   `/src/services`: Contains client-side functions for making requests to the backend API endpoints.
 
 ## AI Usage
 
